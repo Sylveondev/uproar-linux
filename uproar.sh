@@ -8,9 +8,9 @@ sleep 3
 echo "---"
 fdisk -l
 echo "---"
-echo "Enter the disk to write to (For example: /dev/sda)"
+echo "Enter the disk to write to (For example: sda, mmcblk0)"
 read DISK
-if [ -x DISK ]; then
+if [ -x /dev/"$DISK" ]; then
   echo "Okay, Uproar will be installed to $DISK."
 else
   echo "Disk does not exist in the file system."
