@@ -48,4 +48,5 @@ if [ -d "$xinitdir/xinitrc.d" ] ; then
     unset f
 fi
 
-startfluxbox
+startfluxbox &
+python3 /root/installer.py
