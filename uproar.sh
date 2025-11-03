@@ -88,14 +88,16 @@ read DESKTOP
 arch-chroot /mnt /bin/bash -c "
 if [ '$DESKTOP' == '1' ]; then
     echo 'xfce4 will be installed.'
-    pacman -S --noconfirm ly
+    pacman -S --noconfirm ly xfce4 mousepad firefox
 fi
 if [ -d '/sys/firmware/efi' ]; then
     pacman -S --noconfirm grub efibootmgr
     grub-install --target=x86_64-efi --efi-directory=esp --bootloader-id=GRUB
+    grub-mkconfig -o /boot/grub/grub.cfg
 else
     pacman -S --noconfirm grub
     grub-install --target=i386-pc /dev/$DISK
+    grub-mkconfig -o /boot/grub/grub.cfg
 fi
 exit
 "
