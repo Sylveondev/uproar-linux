@@ -59,14 +59,20 @@ echo '
 ===(3/5) User configuration===
 Next step, we will setup the root user password and create your user. First up, enter a new password for root.'
 passwd
+exit
+"
+
 echo 'Next, enter your desired username.'
 read USERNAME
+arch-chroot /mnt /bin/bash -c "
 useradd -m $USERNAME
 echo Now enter the password for the user $USERNAME.
 passwd $USERNAME
 echo 'Good, finishing the installation now.'
 echo '---'
 mkinitcpio -P
+exit
+"
 echo '
 
 ===(4/5) Desktop profiles===
@@ -79,6 +85,7 @@ The following desktops have been configured specifically for Uproar.
 
 Choose a number you wish to use.'
 read DESKTOP
+arch-chroot /mnt /bin/bash -c "
 if [ '$DESKTOP' == '1' ]; then
     echo 'xfce4 will be installed.'
     pacman -S --noconfirm ly
