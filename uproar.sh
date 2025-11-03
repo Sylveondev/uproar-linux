@@ -62,6 +62,7 @@ passwd
 echo 'Next, enter your desired username.'
 read USERNAME
 useradd -m $USERNAME
+echo Now enter the password for the user $USERNAME.
 passwd $USERNAME
 echo 'Good, finishing the installation now.'
 echo '---'
@@ -80,6 +81,7 @@ Choose a number you wish to use.'
 read DESKTOP
 if [ '$DESKTOP' == '1' ]; then
     echo 'xfce4 will be installed.'
+    pacman -S --noconfirm ly
 fi
 if [ -d '/sys/firmware/efi' ]; then
     pacman -S --noconfirm grub efibootmgr
