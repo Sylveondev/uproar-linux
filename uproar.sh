@@ -42,30 +42,31 @@ else
 fi
 pacstrap -K /mnt base linux linux-firmware
 genfstab -U /mnt >> /mnt/etc/fstab
-arch-chroot /mnt
-echo "
+arch-chroot /mnt /bin/bash -c "
+
+echo '
 
 ===(2/5) Region configuration===
-You will now configure your locale settings. When you are ready, press Enter."
+You will now configure your locale settings. When you are ready, press Enter.'
 read
 ln -sf /usr/share/zoneinfo/UTC /etc/localtime
 hwclock --systohc
 nano /etc/locale.gen
 locale-gen
 echo uproar > /etc/hostname
-echo "
+echo '
 
 ===(3/5) User configuration===
-Next step, we will setup the root user password and create your user. First up, enter a new password for root."
+Next step, we will setup the root user password and create your user. First up, enter a new password for root.'
 passwd
-echo "Next, enter your desired username."
+echo 'Next, enter your desired username.'
 read USERNAME
 useradd -m $USERNAME
 passwd $USERNAME
-echo "Good, finishing the installation now."
-echo "---"
+echo 'Good, finishing the installation now.'
+echo '---'
 mkinitcpio -P
-echo "
+echo '
 
 ===(4/5) Desktop profiles===
 You will now choose the desktop environment you wish to use.
@@ -75,18 +76,20 @@ The following desktops have been configured specifically for Uproar.
 2. jwm
 3. hyprland
 
-Choose a number you wish to use."
+Choose a number you wish to use.'
 read DESKTOP
-if [ "$DESKTOP" = "1" ]; then
+if [ '$DESKTOP' = '1' ]; then
 
 fi
-if [ -d "/sys/firmware/efi" ]; then
+if [ -d '/sys/firmware/efi' ]; then
     pacman -S --noconfirm grub efibootmgr
     grub-install --target=x86_64-efi --efi-directory=esp --bootloader-id=GRUB
 else
     pacman -S --noconfirm grub
     grub-install --target=i386-pc /dev/sdX
 fi
-echo "Uproar has finished installing. Restarting in 10 seconds..."
+exit
+"
+echo 'Uproar has finished installing. Restarting in 10 seconds...'
 sleep 10
 systemctl reboot
