@@ -78,15 +78,15 @@ The following desktops have been configured specifically for Uproar.
 
 Choose a number you wish to use.'
 read DESKTOP
-if [ '$DESKTOP' = '1' ]; then
-
+if [ '$DESKTOP' == '1' ]; then
+    echo 'xfce4 will be installed.'
 fi
 if [ -d '/sys/firmware/efi' ]; then
     pacman -S --noconfirm grub efibootmgr
     grub-install --target=x86_64-efi --efi-directory=esp --bootloader-id=GRUB
 else
     pacman -S --noconfirm grub
-    grub-install --target=i386-pc /dev/sdX
+    grub-install --target=i386-pc /dev/$DISK
 fi
 exit
 "
