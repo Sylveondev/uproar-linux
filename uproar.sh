@@ -34,7 +34,7 @@ else
     echo "The system is running in BIOS (Legacy) mode, so the disk will be created in the MBR format."
     sleep 2
     echo "Partitioning with fdisk..."
-    echo -e "o\nn\n1\n\n\nw" | fdisk /dev/$DISK
+    echo -e "o\nn\np\n1\n\n\nw" | fdisk /dev/$DISK
     echo "Partitioning is complete."
     mkfs.ext4 /dev/"$DISK"1
     MAINPART=/dev/"$DISK"1
