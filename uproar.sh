@@ -43,7 +43,7 @@ fi
 pacstrap -K /mnt base linux linux-firmware
 genfstab -U /mnt >> /mnt/etc/fstab
 arch-chroot /mnt /bin/bash -c "
-
+pacman -S --noconfirm nano
 echo '
 
 ===(2/5) Region configuration===
