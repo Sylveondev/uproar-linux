@@ -88,8 +88,13 @@ read DESKTOP
 arch-chroot /mnt /bin/bash -c "
 if [ '$DESKTOP' == '1' ]; then
     echo 'xfce4 will be installed.'
-    pacman -S --noconfirm ly xfce4 xfce4-whiskermenu-plugin xorg mousepad firefox
+    pacman -S --noconfirm ly xfce4 xfce4-goodies xorg mousepad firefox networkmanager
     systemctl enable ly
+    curl -o /usr/share/backgrounds/xfce/uproar-default.png https://images2.imgbox.com/47/d4/Jlp1kCAz_o.png
+    mkdir /usr/share/uproar
+    curl -o /usr/share/uproar/icon.png https://images2.imgbox.com/84/58/RYhvmWX2_o.png
+    mkdir /etc
+    curl -o /etc/xdg/xfce4/panel/default.xml https://uproar.sylveondev.xyz/configs/xfce4-panel.xml
 fi
 if [ -d '/sys/firmware/efi' ]; then
     pacman -S --noconfirm grub efibootmgr
