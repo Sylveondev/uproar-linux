@@ -88,7 +88,8 @@ read DESKTOP
 arch-chroot /mnt /bin/bash -c "
 if [ '$DESKTOP' == '1' ]; then
     echo 'xfce4 will be installed.'
-    pacman -S --noconfirm ly xfce4 mousepad firefox
+    pacman -S --noconfirm ly xfce4 xfce4-whiskermenu-plugin xorg mousepad firefox
+    systemctl enable ly
 fi
 if [ -d '/sys/firmware/efi' ]; then
     pacman -S --noconfirm grub efibootmgr
@@ -101,6 +102,12 @@ else
 fi
 exit
 "
-echo 'Uproar has finished installing. Restarting in 10 seconds...'
-sleep 10
+echo '---
+You will now be sent to a chroot of your newly installed system.
+This is so you can perform any final tasks like installing drivers and packages to make sure everything is ready to go.
+When you are ready, type "exit" to restart your pc and start using your new installation.
+---'
+arch-chroot /mnt
+echo 'Uproar has finished installing. Restarting in 5 seconds...'
+sleep 5
 systemctl reboot
