@@ -34,6 +34,11 @@
       <property name="recent" type="array">
         <value type="string" value="xfce4-terminal.desktop"/>
       </property>
+      <property name="button-icon" type="string" value="/usr/share/uproar/icon.png"/>
+      <property name="position-search-alternate" type="bool" value="true"/>
+      <property name="position-profile-alternate" type="bool" value="false"/>
+      <property name="show-button-title" type="bool" value="false"/>
+      <property name="button-title" type="string" value="Menu"/>
     </property>
     <property name="plugin-2" type="string" value="separator"/>
     <property name="plugin-5" type="string" value="tasklist">

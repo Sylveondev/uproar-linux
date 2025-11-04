@@ -78,10 +78,9 @@ echo '
 ===(4/5) Desktop profiles===
 You will now choose the desktop environment you wish to use.
 The following desktops have been configured specifically for Uproar.
+More desktops will be added in the near future.
 
 1. xfce4
-2. jwm
-3. hyprland
 
 Choose a number you wish to use.'
 read DESKTOP
@@ -95,6 +94,7 @@ if [ '$DESKTOP' == '1' ]; then
     curl -o /usr/share/uproar/icon.png https://images2.imgbox.com/84/58/RYhvmWX2_o.png
     mkdir /etc
     curl -o /etc/xdg/xfce4/panel/default.xml https://uproar.sylveondev.xyz/configs/xfce4-panel.xml
+    curl -o /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml https://uproar.sylveondev.xyz/configs/xfce4-desktop.xml
 fi
 if [ -d '/sys/firmware/efi' ]; then
     pacman -S --noconfirm grub efibootmgr
