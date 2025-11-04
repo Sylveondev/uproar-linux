@@ -19,6 +19,7 @@
         <value type="int" value="6"/>
         <value type="int" value="10"/>
         <value type="int" value="11"/>
+        <value type="int" value="8"/>
         <value type="int" value="9"/>
         <value type="int" value="7"/>
         <value type="int" value="12"/>
@@ -32,6 +33,7 @@
   <property name="plugins" type="empty">
     <property name="plugin-1" type="string" value="whiskermenu">
       <property name="recent" type="array">
+        <value type="string" value="xfce4-taskmanager.desktop"/>
         <value type="string" value="xfce4-terminal.desktop"/>
       </property>
       <property name="button-icon" type="string" value="/usr/share/uproar/icon.png"/>
@@ -59,9 +61,17 @@
       <property name="digital-time-font" type="string" value="FreeSans Semi-Bold 12"/>
     </property>
     <property name="plugin-9" type="string" value="power-manager-plugin"/>
-    <property name="plugin-10" type="string" value="systray"/>
+    <property name="plugin-10" type="string" value="systray">
+      <property name="known-legacy-items" type="array">
+        <value type="string" value="networkmanager applet"/>
+      </property>
+    </property>
     <property name="plugin-11" type="string" value="notification-plugin"/>
     <property name="plugin-12" type="string" value="separator"/>
     <property name="plugin-13" type="string" value="showdesktop"/>
+    <property name="plugin-8" type="string" value="pulseaudio">
+      <property name="enable-keyboard-shortcuts" type="bool" value="true"/>
+      <property name="known-players" type="string" value="firefox"/>
+    </property>
   </property>
 </channel>
