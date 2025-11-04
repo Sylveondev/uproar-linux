@@ -29,7 +29,8 @@ if [ -d "/sys/firmware/efi" ]; then
     MAINPART=/dev/"$DISK"2
     BOOTPART=/dev/"$DISK"1
     mount $MAINPART /mnt
-    mount --mkdir /dev/"$DISK"1 /mnt/boot
+    mkdir -p /mnt/boot/efi
+    mount --mkdir /dev/"$DISK"1 /mnt/boot/efi
 else
     echo "The system is running in BIOS (Legacy) mode, so the disk will be created in the MBR format."
     sleep 2
