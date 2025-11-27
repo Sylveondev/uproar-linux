@@ -77,11 +77,15 @@ exit
 echo '
 
 ===(4/5) Desktop profiles===
-You will now choose the desktop environment you wish to use.
+You will now choose the configuration you wish to use.
 The following desktops have been configured specifically for Uproar.
 More desktops will be added in the near future.
 
-1. xfce4
+--- Desktops ---
+1. xfce4 (Main configuration for Uproar)
+
+--- Extras ---
+2. Kodi (Openbox and Kodi, turn your PC into a TV)
 
 Choose a number you wish to use.'
 read DESKTOP
@@ -99,6 +103,10 @@ if [ '$DESKTOP' == '1' ]; then
     curl -o /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml https://uproar.sylveondev.xyz/configs/xfce4-desktop.xml
     curl -o /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml https://uproar.sylveondev.xyz/configs/xsettings.xml
 fi
+if [ '$DESKTOP' == '2' ]; then
+    echo 'Kodi will be installed.'
+fi
+
 if [ -d '/sys/firmware/efi' ]; then
     pacman -S --noconfirm grub efibootmgr
     grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB
