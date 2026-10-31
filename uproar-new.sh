@@ -8,8 +8,8 @@
 
 # Designed by SylveonDev, 2025-2026
 
-RELEASE = "9-23-2026"
-LOGO = " 
+RELEASE="9-23-2026"
+LOGO=" 
       ^ ^
     =(OwO)=       Uproar Linux
      (     )/     -- Updated $RELEASE --
