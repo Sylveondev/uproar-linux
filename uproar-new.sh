@@ -21,6 +21,7 @@ level of experience with Linux before using this software.
 
 To continue, press Enter."
 read
+MainMenu
 
 partDisk () {
     clear
