@@ -9,9 +9,15 @@ sleep 3
 echo "---"
 fdisk -l
 echo "---
-Enter the disk to write to (For example: sda, mmcblk0)"
+Enter the disk to write to (For example: sda, sdc)
+To manually specify partitions, type 'manual' and press Enter."
 read DISK
-if [ -n /dev/$DISK ]; then
+if [ "$DISK" == "manual" ]; then
+  MANUALMODE = true
+  echo "Okay, you will now be sent to fdisk to manually partition your disk."
+  sleep 2
+  fdisk /dev/$DISK
+else if [ -n /dev/$DISK ]; then
   echo "Okay, Uproar will be installed to $DISK."
 else
   echo "Disk does not exist in the file system."
