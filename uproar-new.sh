@@ -143,6 +143,7 @@ chrootHelper () {
     ----------------------------------------------------
     "
     echo "This helper will allow you to chroot into your Uproar installation."
+    lsblk
     read -p "Enter the boot partition (For example: sda1, sdc1): " BOOTPART
     read -p "Enter the root partition (For example: sda2, sdc2): " ROOTPART
     mount /dev/$BOOTPART /mnt/boot
