@@ -143,10 +143,13 @@ chrootHelper () {
     ----------------------------------------------------
     "
     echo "This helper will allow you to chroot into your Uproar installation."
+    read -p "Enter the boot partition (For example: sda1, sdc1): " BOOTPART
     read -p "Enter the root partition (For example: sda2, sdc2): " ROOTPART
+    mount /dev/$BOOTPART /mnt/boot
     mount /dev/$ROOTPART /mnt
     arch-chroot /mnt /bin/bash
-    unmount /mnt
+    umount /mnt/boot
+    umount /mnt
     echo "You have exited the chroot environment."
     read -p "Press Enter to return to the main menu."
     MainMenu
