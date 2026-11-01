@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # This is the text based interface for Uproar.
 
@@ -15,12 +15,26 @@ LOGO="
      (     )/     -- Updated $RELEASE --
        | |"
 
+normalizeDeviceName () {
+    case "$1" in
+        /dev/*) printf '%s\n' "${1#/dev/}" ;;
+        *) printf '%s\n' "$1" ;;
+    esac
+}
+
+isBlockDeviceName () {
+    case "$1" in
+        ''|*[!A-Za-z0-9._-]*) return 1 ;;
+    esac
+    [ -b "/dev/$1" ]
+}
+
 echo "Uproar is free software, and comes with ABSOLUTELY NO WARRANTY. Usage of this software is at your own risk.
 Uproar is experimental software and is not guaranteed to work on all devices. It is highly recommended to have some
 level of experience with Linux before using this software.
 
 To continue, press Enter."
-read
+read -r
 
 partDisk () {
     clear
@@ -31,41 +45,70 @@ partDisk () {
     ----------------------------------------------------
     "
     lsblk
-    echo "
-    ...
-    Enter the disk to modify (For example: sda, sdc)"
-    read DISK
-    if [ -n /dev/$DISK ]; then
-        echo "Okay, you will now be sent to fdisk to modify your disk.
+    read -r -p "Enter the disk to modify (For example: sda, sdc): " DISK
+    DISK=$(normalizeDeviceName "$DISK")
+    if ! isBlockDeviceName "$DISK"; then
+        echo "Disk does not exist or is not a valid device."
+        read -r -p "Press Enter to return to the main menu."
+        MainMenu
+        return 1
+    fi
+
+    echo "Okay, you will now be sent to fdisk to modify your disk.
         
         You will need to create a 1gb partition for the boot partition, and the rest can be used for the root partition.
         Uproar will format the partitions automatically,
 
         "
-        sleep 2
-        fdisk /dev/$DISK
-        lsblk
-        read -p "Where do you want the boot partition to be? (For example: sda1, sdc1)" BOOTPART
-        read -p "Where do you want the root partition to be? (For example: sda2, sdc2)" ROOTPART
-        echo "Formatting partitions..."
-        mkfs.vfat -F 32 /dev/$BOOTPART
-        mkfs.ext4 /dev/$ROOTPART
-        echo "Mounting partitions..."
-        if [ -d "/sys/firmware/efi" ]; then
-            mount /dev/$ROOTPART /mnt
-            mkdir -p /mnt/boot/efi
-            mount --mkdir /dev/$BOOTPART /mnt/boot/efi
-        else
-            mount /dev/$ROOTPART /mnt
-            mkdir -p /mnt/boot
-            mount /dev/$BOOTPART /mnt/boot
-        fi
+    sleep 2
+    if ! fdisk "/dev/$DISK"; then
+        echo "Partitioning failed."
+        read -r -p "Press Enter to return to the main menu."
         MainMenu
-    else
-        echo "Disk does not exist in the file system..."
-        read -p "Press Enter to return to the main menu."
-        MainMenu
+        return 1
     fi
+
+    lsblk
+    read -r -p "Where do you want the boot partition to be? (For example: sda1, sdc1): " BOOTPART
+    BOOTPART=$(normalizeDeviceName "$BOOTPART")
+    read -r -p "Where do you want the root partition to be? (For example: sda2, sdc2): " ROOTPART
+    ROOTPART=$(normalizeDeviceName "$ROOTPART")
+    if ! isBlockDeviceName "$BOOTPART" || ! isBlockDeviceName "$ROOTPART" ||
+        [ "$BOOTPART" = "$ROOTPART" ] || [ "$BOOTPART" = "$DISK" ] || [ "$ROOTPART" = "$DISK" ]; then
+        echo "Boot and root must be two distinct, existing partition devices."
+        read -r -p "Press Enter to return to the main menu."
+        MainMenu
+        return 1
+    fi
+
+    echo "Formatting partitions..."
+    if ! mkfs.vfat -F 32 "/dev/$BOOTPART" || ! mkfs.ext4 "/dev/$ROOTPART"; then
+        echo "Partition formatting failed."
+        read -r -p "Press Enter to return to the main menu."
+        MainMenu
+        return 1
+    fi
+
+    echo "Mounting partitions..."
+    if ! mount "/dev/$ROOTPART" /mnt; then
+        echo "Could not mount the root partition."
+        read -r -p "Press Enter to return to the main menu."
+        MainMenu
+        return 1
+    fi
+    if [ -d "/sys/firmware/efi" ]; then
+        BOOT_MOUNT=/mnt/boot/efi
+    else
+        BOOT_MOUNT=/mnt/boot
+    fi
+    if ! mkdir -p "$BOOT_MOUNT" || ! mount "/dev/$BOOTPART" "$BOOT_MOUNT"; then
+        echo "Could not mount the boot partition."
+        umount /mnt
+        read -r -p "Press Enter to return to the main menu."
+        MainMenu
+        return 1
+    fi
+    MainMenu
 }
 
 updateCerts () {
@@ -77,9 +120,14 @@ updateCerts () {
     ----------------------------------------------------
     "
     echo "Updating certificates..."
-    pacman -Sy --noconfirm ca-certificates
+    if ! pacman -Syu --noconfirm ca-certificates; then
+        echo "Certificate update failed."
+        read -r -p "Press Enter to return to the main menu."
+        MainMenu
+        return 1
+    fi
     echo "Certificates updated successfully."
-    read -p "Press Enter to return to the main menu."
+    read -r -p "Press Enter to return to the main menu."
     MainMenu
 }
 
@@ -92,24 +140,45 @@ installUproar () {
     ----------------------------------------------------
     "
     echo "Installing Uproar..."
+    if [ ! -d "/sys/firmware/efi" ] && ! isBlockDeviceName "${DISK:-}"; then
+        echo "Select a valid target disk with the disk partitioner before installing in BIOS mode."
+        read -r -p "Press Enter to return to the main menu."
+        MainMenu
+        return 1
+    fi
     sleep 2
-    pacstrap -K /mnt base linux linux-firmware
-    genfstab -U /mnt >> /mnt/etc/fstab
-    arch-chroot /mnt /bin/bash -c "
+    if ! pacstrap -K /mnt base linux linux-firmware; then
+        echo "Base system installation failed."
+        read -r -p "Press Enter to return to the main menu."
+        MainMenu
+        return 1
+    fi
+    if ! genfstab -U /mnt >> /mnt/etc/fstab; then
+        echo "Could not write the filesystem table."
+        read -r -p "Press Enter to return to the main menu."
+        MainMenu
+        return 1
+    fi
+    CHROOT_SCRIPT=$(cat <<'CHROOT_SCRIPT'
+    set -e
     pacman -S --noconfirm nano
     echo '===(2/5) Region configuration===
 You will now configure your locale settings. When you are ready, press Enter.'
-    read
+    read -r
     ln -sf /usr/share/zoneinfo/UTC /etc/localtime
     hwclock --systohc
     nano /etc/locale.gen
     locale-gen
     echo uproar > /etc/hostname
     echo '===(3/5) User configuration==='
-    read -p 'Enter a username for the new user: ' USERNAME
-    useradd -m $USERNAME
-    echo 'Now enter the password for the user $USERNAME.'
-    passwd $USERNAME
+    read -r -p "Enter a username for the new user: " USERNAME
+    if [[ ! "$USERNAME" =~ ^[a-z_][a-z0-9_-]*[$]?$ ]]; then
+        echo "Invalid username."
+        exit 1
+    fi
+    useradd -m "$USERNAME"
+    echo "Now enter the password for the user $USERNAME."
+    passwd "$USERNAME"
     echo '===(4/5) Bootloader installation==='
     if [ -d "/sys/firmware/efi" ]; then
         echo 'Installing GRUB bootloader for UEFI...'
@@ -119,7 +188,7 @@ You will now configure your locale settings. When you are ready, press Enter.'
     else
         echo 'Installing GRUB bootloader for BIOS...'
         pacman -S --noconfirm grub
-        grub-install --target=i386-pc /dev/$DISK
+        grub-install --target=i386-pc "/dev/$1"
         grub-mkconfig -o /boot/grub/grub.cfg
     fi
     echo '===(5/5) Finalizing installation==='
@@ -130,7 +199,14 @@ You will now configure your locale settings. When you are ready, press Enter.'
     mkinitcpio -P
     echo 'Installation complete. You can now reboot into your new Uproar installation.'
     exit
-    "
+CHROOT_SCRIPT
+)
+    if ! arch-chroot /mnt /bin/bash -c "$CHROOT_SCRIPT" uproar-install "$DISK"; then
+        echo "Installation failed inside the target system."
+        read -r -p "Press Enter to return to the main menu."
+        MainMenu
+        return 1
+    fi
     exit
 }
 
@@ -144,15 +220,42 @@ chrootHelper () {
     "
     echo "This helper will allow you to chroot into your Uproar installation."
     lsblk
-    read -p "Enter the boot partition (For example: sda1, sdc1): " BOOTPART
-    read -p "Enter the root partition (For example: sda2, sdc2): " ROOTPART
-    mount /dev/$BOOTPART /mnt/boot
-    mount /dev/$ROOTPART /mnt
-    arch-chroot /mnt /bin/bash
-    umount /mnt/boot
-    umount /mnt
+    read -r -p "Enter the boot partition (For example: sda1, sdc1): " BOOTPART
+    BOOTPART=$(normalizeDeviceName "$BOOTPART")
+    read -r -p "Enter the root partition (For example: sda2, sdc2): " ROOTPART
+    ROOTPART=$(normalizeDeviceName "$ROOTPART")
+    if ! isBlockDeviceName "$BOOTPART" || ! isBlockDeviceName "$ROOTPART" || [ "$BOOTPART" = "$ROOTPART" ]; then
+        echo "Boot and root must be two distinct, existing partition devices."
+        read -r -p "Press Enter to return to the main menu."
+        MainMenu
+        return 1
+    fi
+
+    if ! mount "/dev/$ROOTPART" /mnt; then
+        echo "Could not mount the root partition."
+        read -r -p "Press Enter to return to the main menu."
+        MainMenu
+        return 1
+    fi
+    if [ -d "/sys/firmware/efi" ]; then
+        BOOT_MOUNT=/mnt/boot/efi
+    else
+        BOOT_MOUNT=/mnt/boot
+    fi
+    if ! mkdir -p "$BOOT_MOUNT" || ! mount "/dev/$BOOTPART" "$BOOT_MOUNT"; then
+        echo "Could not mount the boot partition."
+        umount /mnt
+        read -r -p "Press Enter to return to the main menu."
+        MainMenu
+        return 1
+    fi
+    if ! arch-chroot /mnt /bin/bash; then
+        echo "Could not enter the chroot environment."
+    fi
+    umount "$BOOT_MOUNT" || echo "Warning: could not unmount $BOOT_MOUNT."
+    umount /mnt || echo "Warning: could not unmount /mnt."
     echo "You have exited the chroot environment."
-    read -p "Press Enter to return to the main menu."
+    read -r -p "Press Enter to return to the main menu."
     MainMenu
 }
 
@@ -171,7 +274,7 @@ MainMenu () {
     - 5) Exit                                          -
     ----------------------------------------------------
     "
-    read -p "Enter your choice: " CHOICE
+    read -r -p "Enter your choice: " CHOICE
     case $CHOICE in
         1) partDisk ;;
         2) updateCerts ;;
