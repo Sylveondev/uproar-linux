@@ -120,7 +120,7 @@ updateCerts () {
     ----------------------------------------------------
     "
     echo "Updating certificates..."
-    if ! pacman -Syu --noconfirm ca-certificates; then
+    if ! pacman -Sy --noconfirm ca-certificates; then
         echo "Certificate update failed."
         read -r -p "Press Enter to return to the main menu."
         MainMenu
