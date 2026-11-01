@@ -161,7 +161,7 @@ installUproar () {
     fi
     CHROOT_SCRIPT=$(cat <<'CHROOT_SCRIPT'
     set -e
-    pacman -S --noconfirm nano
+    pacman -S --noconfirm nano polkit
     echo '===(2/5) Region configuration===
 You will now configure your locale settings. When you are ready, press Enter.'
     read -r
@@ -179,6 +179,10 @@ You will now configure your locale settings. When you are ready, press Enter.'
     useradd -m "$USERNAME"
     echo "Now enter the password for the user $USERNAME."
     passwd "$USERNAME"
+    echo "Now enter a new password for root."
+    passwd
+    pacman -S --noconfirm sudo
+    echo "$USERNAME ALL=(ALL) ALL" >> /etc/sudoers
     echo '===(4/5) Bootloader installation==='
     if [ -d "/sys/firmware/efi" ]; then
         echo 'Installing GRUB bootloader for UEFI...'
