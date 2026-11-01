@@ -39,7 +39,7 @@ case "$1" in
             /etc/xdg/xfce4/xfconf/xfce-perchannel-xml
 
         curl --fail --location --show-error --output /usr/share/backgrounds/xfce/uproar-default.png \
-            https://uproar.sylveondev.xyz/images/uproarDefault.png
+            https://uproar.sylveondev.xyz/images/defaultbg.png
         curl --fail --location --show-error --output /usr/share/uproar/icon.png \
             https://uproar.sylveondev.xyz/images/logo.png
         curl --fail --location --show-error --output /etc/xdg/xfce4/panel/default.xml \
