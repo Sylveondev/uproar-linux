@@ -124,6 +124,9 @@ You will now configure your locale settings. When you are ready, press Enter.'
     fi
     echo '===(5/5) Finalizing installation==='
     echo 'Finishing up the installation...'
+    pacman -S --noconfirm ly brightnessctl
+    systemctl enable ly@tty1.service
+    systemctl disable getty@tty1.service
     mkinitcpio -P
     echo 'Installation complete. You can now reboot into your new Uproar installation.'
     exit
