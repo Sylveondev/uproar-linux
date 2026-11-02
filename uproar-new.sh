@@ -29,6 +29,36 @@ isBlockDeviceName () {
     [ -b "/dev/$1" ]
 }
 
+isPartitionOfDisk () {
+    local partition="$1"
+    local disk="$2"
+    local partition_type parent_name disk_name
+
+    partition_type=$(lsblk -dnro TYPE "/dev/$partition" 2>/dev/null) || return 1
+    [ "$partition_type" = "part" ] || return 1
+    parent_name=$(lsblk -dnro PKNAME "/dev/$partition" 2>/dev/null) || return 1
+    disk_name=$(basename "$(readlink -f "/dev/$disk")") || return 1
+    [ "$parent_name" = "$disk_name" ]
+}
+
+partitionsShareDisk () {
+    local boot_parent root_parent
+
+    boot_parent=$(lsblk -dnro PKNAME "/dev/$1" 2>/dev/null) || return 1
+    root_parent=$(lsblk -dnro PKNAME "/dev/$2" 2>/dev/null) || return 1
+    [ -n "$boot_parent" ] && [ "$boot_parent" = "$root_parent" ]
+}
+
+isMountedDeviceAt () {
+    local device="$1"
+    local mountpoint="$2"
+    local mounted_source
+
+    mountpoint -q "$mountpoint" || return 1
+    mounted_source=$(findmnt -rn -e -o SOURCE --mountpoint "$mountpoint") || return 1
+    [ "$(readlink -f "$mounted_source")" = "$(readlink -f "/dev/$device")" ]
+}
+
 echo "Uproar is free software, and comes with ABSOLUTELY NO WARRANTY. Usage of this software is at your own risk.
 Uproar is experimental software and is not guaranteed to work on all devices. It is highly recommended to have some
 level of experience with Linux before using this software.
@@ -49,8 +79,10 @@ partDisk () {
     DISK=$(normalizeDeviceName "$DISK")
     if ! isBlockDeviceName "$DISK"; then
         echo "Disk does not exist or is not a valid device."
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
+        return 1
+    fi
+    if [ "$(lsblk -dnro TYPE "/dev/$DISK" 2>/dev/null)" != "disk" ]; then
+        echo "Select a whole disk, not a partition."
         return 1
     fi
 
@@ -63,8 +95,6 @@ partDisk () {
     sleep 2
     if ! fdisk "/dev/$DISK"; then
         echo "Partitioning failed."
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
         return 1
     fi
 
@@ -74,26 +104,22 @@ partDisk () {
     read -r -p "Where do you want the root partition to be? (For example: sda2, sdc2): " ROOTPART
     ROOTPART=$(normalizeDeviceName "$ROOTPART")
     if ! isBlockDeviceName "$BOOTPART" || ! isBlockDeviceName "$ROOTPART" ||
-        [ "$BOOTPART" = "$ROOTPART" ] || [ "$BOOTPART" = "$DISK" ] || [ "$ROOTPART" = "$DISK" ]; then
-        echo "Boot and root must be two distinct, existing partition devices."
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
+        [ "$BOOTPART" = "$ROOTPART" ] ||
+        ! isPartitionOfDisk "$BOOTPART" "$DISK" ||
+        ! isPartitionOfDisk "$ROOTPART" "$DISK"; then
+        echo "Boot and root must be distinct partitions of the selected disk."
         return 1
     fi
 
     echo "Formatting partitions..."
     if ! mkfs.vfat -F 32 "/dev/$BOOTPART" || ! mkfs.ext4 "/dev/$ROOTPART"; then
         echo "Partition formatting failed."
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
         return 1
     fi
 
     echo "Mounting partitions..."
     if ! mount "/dev/$ROOTPART" /mnt; then
         echo "Could not mount the root partition."
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
         return 1
     fi
     if [ -d "/sys/firmware/efi" ]; then
@@ -103,12 +129,9 @@ partDisk () {
     fi
     if ! mkdir -p "$BOOT_MOUNT" || ! mount "/dev/$BOOTPART" "$BOOT_MOUNT"; then
         echo "Could not mount the boot partition."
-        umount /mnt
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
+        umount /mnt || echo "Warning: could not unmount /mnt."
         return 1
     fi
-    MainMenu
 }
 
 updateCerts () {
@@ -122,13 +145,9 @@ updateCerts () {
     echo "Updating certificates..."
     if ! pacman -Sy --noconfirm ca-certificates; then
         echo "Certificate update failed."
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
         return 1
     fi
     echo "Certificates updated successfully."
-    read -r -p "Press Enter to return to the main menu."
-    MainMenu
 }
 
 installUproar () {
@@ -140,23 +159,39 @@ installUproar () {
     ----------------------------------------------------
     "
     echo "Installing Uproar..."
-    if [ ! -d "/sys/firmware/efi" ] && ! isBlockDeviceName "${DISK:-}"; then
-        echo "Select a valid target disk with the disk partitioner before installing in BIOS mode."
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
+    if ! isBlockDeviceName "${DISK:-}" ||
+        ! isPartitionOfDisk "${BOOTPART:-}" "${DISK:-}" ||
+        ! isPartitionOfDisk "${ROOTPART:-}" "${DISK:-}"; then
+        echo "Select and partition a valid target disk before installing."
+        return 1
+    fi
+    if [ -d "/sys/firmware/efi" ]; then
+        BOOT_MOUNT=/mnt/boot/efi
+    else
+        BOOT_MOUNT=/mnt/boot
+    fi
+    if ! isMountedDeviceAt "$ROOTPART" /mnt ||
+        ! isMountedDeviceAt "$BOOTPART" "$BOOT_MOUNT"; then
+        echo "The selected root and boot partitions must be mounted at /mnt and $BOOT_MOUNT."
         return 1
     fi
     sleep 2
     if ! pacstrap -K /mnt base linux linux-firmware; then
         echo "Base system installation failed."
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
         return 1
     fi
-    if ! genfstab -U /mnt >> /mnt/etc/fstab; then
+    FSTAB_TMP=$(mktemp /mnt/etc/fstab.XXXXXX) || {
+        echo "Could not create a temporary filesystem table."
+        return 1
+    }
+    if ! genfstab -U /mnt > "$FSTAB_TMP"; then
+        rm -f "$FSTAB_TMP"
         echo "Could not write the filesystem table."
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
+        return 1
+    fi
+    if ! mv "$FSTAB_TMP" /mnt/etc/fstab; then
+        rm -f "$FSTAB_TMP"
+        echo "Could not install the generated filesystem table."
         return 1
     fi
     CHROOT_SCRIPT=$(cat <<'CHROOT_SCRIPT'
@@ -197,18 +232,29 @@ You will now configure your locale settings. When you are ready, press Enter.'
     fi
     echo '===(5/5) Finalizing installation==='
     echo 'Finishing up the installation...'
-    pacman -S --noconfirm ly brightnessctl
+    pacman -S --noconfirm ly brightnessctl networkmanager
     systemctl enable ly@tty1.service
     systemctl disable getty@tty1.service
+    systemctl enable NetworkManager
+    EXTRAS_TMP=$(mktemp /usr/bin/uproar-extras.sh.XXXXXX)
+    trap 'rm -f "$EXTRAS_TMP"' EXIT
+    curl --fail --location --show-error --output "$EXTRAS_TMP" https://uproar.sylveondev.xyz/extras.sh
+    install -m 755 "$EXTRAS_TMP" /usr/bin/uproar-extras.sh
+    rm -f "$EXTRAS_TMP"
     mkinitcpio -P
-    echo 'Installation complete. You can now reboot into your new Uproar installation.'
+    echo '-----------
+    Installation complete. You can now reboot into your new Uproar installation.
+
+    Notes:
+    - After rebooting, you can run the command "sudo uproar-extras.sh" to install a desktop environment and other extras.
+    - The password for sudo commands is your password. The root password is mainly for the root user at login.
+    - If you need to chroot into your installation, run this script again from the live environment and select the chroot helper option.
+    - To dual boot uproar, run "sudo uproar-extras.sh" and select dual boot helper.'
     exit
 CHROOT_SCRIPT
 )
     if ! arch-chroot /mnt /bin/bash -c "$CHROOT_SCRIPT" uproar-install "$DISK"; then
         echo "Installation failed inside the target system."
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
         return 1
     fi
     exit
@@ -228,17 +274,17 @@ chrootHelper () {
     BOOTPART=$(normalizeDeviceName "$BOOTPART")
     read -r -p "Enter the root partition (For example: sda2, sdc2): " ROOTPART
     ROOTPART=$(normalizeDeviceName "$ROOTPART")
-    if ! isBlockDeviceName "$BOOTPART" || ! isBlockDeviceName "$ROOTPART" || [ "$BOOTPART" = "$ROOTPART" ]; then
-        echo "Boot and root must be two distinct, existing partition devices."
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
+    if ! isBlockDeviceName "$BOOTPART" || ! isBlockDeviceName "$ROOTPART" ||
+        [ "$BOOTPART" = "$ROOTPART" ] ||
+        [ "$(lsblk -dnro TYPE "/dev/$BOOTPART" 2>/dev/null)" != "part" ] ||
+        [ "$(lsblk -dnro TYPE "/dev/$ROOTPART" 2>/dev/null)" != "part" ] ||
+        ! partitionsShareDisk "$BOOTPART" "$ROOTPART"; then
+        echo "Boot and root must be distinct, existing partition devices."
         return 1
     fi
 
     if ! mount "/dev/$ROOTPART" /mnt; then
         echo "Could not mount the root partition."
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
         return 1
     fi
     if [ -d "/sys/firmware/efi" ]; then
@@ -248,26 +294,34 @@ chrootHelper () {
     fi
     if ! mkdir -p "$BOOT_MOUNT" || ! mount "/dev/$BOOTPART" "$BOOT_MOUNT"; then
         echo "Could not mount the boot partition."
-        umount /mnt
-        read -r -p "Press Enter to return to the main menu."
-        MainMenu
+        umount /mnt || echo "Warning: could not unmount /mnt."
         return 1
     fi
+    CHROOT_STATUS=0
     if ! arch-chroot /mnt /bin/bash; then
         echo "Could not enter the chroot environment."
+        CHROOT_STATUS=1
     fi
-    umount "$BOOT_MOUNT" || echo "Warning: could not unmount $BOOT_MOUNT."
-    umount /mnt || echo "Warning: could not unmount /mnt."
-    echo "You have exited the chroot environment."
-    read -r -p "Press Enter to return to the main menu."
-    MainMenu
+    if ! umount "$BOOT_MOUNT"; then
+        echo "Warning: could not unmount $BOOT_MOUNT."
+        CHROOT_STATUS=1
+    fi
+    if ! umount /mnt; then
+        echo "Warning: could not unmount /mnt."
+        CHROOT_STATUS=1
+    fi
+    if [ "$CHROOT_STATUS" -eq 0 ]; then
+        echo "You have exited the chroot environment."
+    fi
+    return "$CHROOT_STATUS"
 }
 
 
 MainMenu () {
-    clear
-    echo "$LOGO"
-    echo "
+    while true; do
+        clear
+        echo "$LOGO"
+        echo "
     ----------------------------------------------------
     -                   Main Menu                      -
     ----------------------------------------------------
@@ -278,15 +332,23 @@ MainMenu () {
     - 5) Exit                                          -
     ----------------------------------------------------
     "
-    read -r -p "Enter your choice: " CHOICE
-    case $CHOICE in
-        1) partDisk ;;
-        2) updateCerts ;;
-        3) installUproar ;;
-        4) chrootHelper ;;
-        5) exit ;;
-        *) echo "Invalid choice. Please try again." ; MainMenu ;;
-    esac
+        if ! read -r -p "Enter your choice: " CHOICE; then
+            echo "Could not read menu choice." >&2
+            return 1
+        fi
+        ACTION_STATUS=0
+        case "$CHOICE" in
+            1) partDisk || ACTION_STATUS=$? ;;
+            2) updateCerts || ACTION_STATUS=$? ;;
+            3) installUproar || ACTION_STATUS=$? ;;
+            4) chrootHelper || ACTION_STATUS=$? ;;
+            5) return 0 ;;
+            *) echo "Invalid choice. Please try again." ; read -r -p "Press Enter to continue." ;;
+        esac
+        if [ "$ACTION_STATUS" -ne 0 ]; then
+            read -r -p "Action failed. Press Enter to return to the menu."
+        fi
+    done
 }
 
 MainMenu
