@@ -104,7 +104,8 @@ Choose a number you wish to use.'
         fi
 
         if ! mkdir -p \
-            /usr/share/uproar; then
+            /usr/share/uproar \
+            /usr/share/backgrounds/uproar; then
             echo "Could not create Cinnamon configuration directories." >&2
             return 1
         fi
@@ -115,7 +116,7 @@ Choose a number you wish to use.'
             echo "Could not download the Uproar icon." >&2
             return 1
         fi
-        if ! curl --fail --location --show-error --output /usr/share/backgrounds/cinnamon/uproar-default.png \
+        if ! curl --fail --location --show-error --output /usr/share/backgrounds/uproar/uproar-default.png \
             https://uproar.sylveondev.xyz/images/defaultbg.png
         then
             echo "Could not download the Cinnamon background." >&2
