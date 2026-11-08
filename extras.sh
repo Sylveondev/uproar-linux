@@ -94,12 +94,31 @@ Choose a number you wish to use.'
         ;;
     2)
         echo 'Cinnamon will be installed.'
-        if ! pacman -S --noconfirm cinnamon xorg mousepad firefox networkmanager network-manager-applet pulseaudio; then
+        if ! pacman -S --noconfirm cinnamon xorg mousepad gnome-terminal firefox networkmanager network-manager-applet pulseaudio; then
             echo "Could not install Cinnamon packages." >&2
             return 1
         fi
         if ! systemctl enable NetworkManager; then
             echo "Could not enable NetworkManager." >&2
+            return 1
+        fi
+
+        if ! mkdir -p \
+            /usr/share/uproar; then
+            echo "Could not create Cinnamon configuration directories." >&2
+            return 1
+        fi
+
+        if ! curl --fail --location --show-error --output /usr/share/uproar/icon.png \
+            https://uproar.sylveondev.xyz/images/logo.png
+        then
+            echo "Could not download the Uproar icon." >&2
+            return 1
+        fi
+        if ! curl --fail --location --show-error --output /usr/share/backgrounds/cinnamon/uproar-default.png \
+            https://uproar.sylveondev.xyz/images/defaultbg.png
+        then
+            echo "Could not download the Cinnamon background." >&2
             return 1
         fi
         ;;
