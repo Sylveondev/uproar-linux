@@ -132,40 +132,26 @@ Choose a number you wish to use.'
             echo "Could not download the cinnamon config schema." >&2
             return 1
         fi
-        if ! curl --fail --location --show-error --output /usr/local/bin/patch-cinnamon-menu-icon \
-            https://uproar.sylveondev.xyz/configs/cinnamon-hook.py
-        then
-            echo "Could not download the Cinnamon menu icon patcher." >&2
-            return 1
-        fi
-        if ! chmod +x /usr/local/bin/patch-cinnamon-menu-icon; then
-            echo "Could not make the Cinnamon menu icon patcher executable." >&2
-            return 1
-        fi
-        if ! cat << 'EOF' > /etc/pacman.d/hooks/99-cinnamon-menu-icon.hook
-[Trigger]
-Operation = Install
-Operation = Upgrade
-Type = Package
-Target = cinnamon
-
-[Action]
-Description = Patching Cinnamon menu applet default icon...
-When = PostTransaction
-Exec = /usr/local/bin/patch-cinnamon-menu-icon
+        if ! cat << 'EOF' > /usr/share/cinnamon/applets/menu@cinnamon.org/settings-override.json
+{
+    "menu-custom": {
+        "default": true,
+        "override-props": true
+    },
+    "menu-icon": {
+        "default": "/usr/share/uproar/icon.png",
+        "default_icon": "/usr/share/uproar/icon.png",
+        "override-props": true
+    }
+}
 EOF
         then
-            echo "Could not create the Cinnamon menu icon hook." >&2
+            echo "Could not create the Cinnamon menu icon settings." >&2
             return 1
         fi
 
         if ! glib-compile-schemas /usr/share/glib-2.0/schemas; then
             echo "Could not compile the Cinnamon config schema." >&2
-            return 1
-        fi
-
-        if ! /usr/local/bin/patch-cinnamon-menu-icon; then
-            echo "Could not run the Cinnamon menu icon patcher." >&2
             return 1
         fi
         ;;
