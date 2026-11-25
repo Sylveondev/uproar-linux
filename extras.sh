@@ -94,6 +94,17 @@ Choose a number you wish to use.'
         ;;
     2)
         echo 'Cinnamon will be installed.'
+        if ! mkdir -p /etc/skel/.config/cinnamon/spices/menu@cinnamon.org; then
+            echo "Could not create Cinnamon configuration directories." >&2
+            return 1
+        fi
+        if ! curl --fail --location --show-error --output /etc/skel/.config/cinnamon/spices/menu@cinnamon.org/0.json \
+            https://uproar.sylveondev.xyz/configs/cinnamon-appmenu.json
+        then
+            echo "Could not download the Cinnamon app menu configuration." >&2
+            return 1
+        fi
+
         if ! pacman -S --noconfirm cinnamon xorg mousepad gnome-terminal firefox networkmanager network-manager-applet pulseaudio; then
             echo "Could not install Cinnamon packages." >&2
             return 1
@@ -106,7 +117,6 @@ Choose a number you wish to use.'
         if ! mkdir -p \
             /usr/share/uproar \
             /usr/share/backgrounds/uproar \
-            /etc/skel/.config/cinnamon/spices/menu@cinnamon.org/ \
             ; then
             echo "Could not create Cinnamon configuration directories." >&2
             return 1
@@ -129,12 +139,6 @@ Choose a number you wish to use.'
             https://uproar.sylveondev.xyz/configs/cinnamon.gschema
         then
             echo "Could not download the cinnamon config schema." >&2
-            return 1
-        fi
-        if ! curl --fail --location --show-error --output /etc/skel/.config/cinnamon/spices/menu@cinnamon.org/0.json \
-            https://uproar.sylveondev.xyz/configs/cinnamon-appmenu.json
-        then
-            echo "Could not download the Cinnamon app menu configuration." >&2
             return 1
         fi
         ;;
