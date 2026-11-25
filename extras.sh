@@ -128,13 +128,13 @@ Choose a number you wish to use.'
         if ! curl --fail --location --show-error --output /usr/share/glib-2.0/schemas/99_arch-cinnamon.gschema.override \
             https://uproar.sylveondev.xyz/configs/cinnamon.gschema
         then
-            echo "Could not download the Uproar icon." >&2
+            echo "Could not download the cinnamon config schema." >&2
             return 1
         fi
         if ! curl --fail --location --show-error --output /etc/skel/.config/cinnamon/spices/menu@cinnamon.org/0.json \
-            https://uproar.sylveondev.xyz/config/cinnamon-appmenu.json
+            https://uproar.sylveondev.xyz/configs/cinnamon-appmenu.json
         then
-            echo "Could not download the Cinnamon background." >&2
+            echo "Could not download the Cinnamon app menu configuration." >&2
             return 1
         fi
         ;;
